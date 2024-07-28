@@ -1,0 +1,29 @@
+Wiring / Pengkabelan
+1.	Adafruit SI5351 (Clock Generator)
+VCC: Sambungkan ke 5V pada Arduino.
+GND: Sambungkan ke GND pada Arduino.
+SDA: Sambungkan ke pin SDA pada Arduino (biasanya pin A4 pada Arduino Uno).
+SCL: Sambungkan ke pin SCL pada Arduino (biasanya pin A5 pada Arduino Uno).
+
+2.	LCD (LiquidCrystal_I2C)
+VCC: Sambungkan ke 5V pada Arduino.
+GND: Sambungkan ke GND pada Arduino.
+SDA: Sambungkan ke pin SDA pada Arduino (biasanya pin A4 pada Arduino Uno).
+SCL: Sambungkan ke pin SCL pada Arduino (biasanya pin A5 pada Arduino Uno).
+
+3.	Rotary Encoder
+VCC: Sambungkan ke 5V pada Arduino.
+GND: Sambungkan ke GND pada Arduino.
+DT (Data): Sambungkan ke pin 3 pada Arduino.
+CLK (Clock): Sambungkan ke pin 2 pada Arduino.
+
+4.	Tombol-Tombol (Button)
+	PTT Button:
+Satu pin: Sambungkan ke pin 5 pada Arduino.
+Pin lainnya: Sambungkan ke GND pada Arduino.
+	Mode Button:
+Satu pin: Sambungkan ke pin 6 pada Arduino.
+Pin lainnya: Sambungkan ke GND pada Arduino.
+	Step Button:
+Satu pin: Sambungkan ke pin 4 pada Arduino.
+Pin lainnya: Sambungkan ke GND pada Arduino.

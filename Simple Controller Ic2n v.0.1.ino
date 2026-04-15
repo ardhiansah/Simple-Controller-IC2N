@@ -1,124 +1,212 @@
 #include <Wire.h>
-#include <Adafruit_SI5351.h>
 #include <LiquidCrystal_I2C.h>
 #include <Encoder.h>
+#include <Adafruit_SI5351.h>
 
-// Constants
-const uint32_t MIN_FREQUENCY = 143000000; // 143 MHz
-const uint32_t MAX_FREQUENCY = 147000000; // 147 MHz
+// ================= SI5351 RF ENGINE =================
+Adafruit_SI5351 si5351;
+
+// ================= LCD =================
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ================= ENCODER =================
+Encoder encoder(3, 2);
+
+// ================= CONSTANTS =================
+const uint32_t MIN_FREQUENCY = 143000000;
+const uint32_t MAX_FREQUENCY = 147000000;
 const uint32_t STEP_SIZES[] = {10000, 100000, 1000000};
-const uint32_t OFFSET = 600000; // 600 kHz
-const unsigned long DEBOUNCE_DELAY = 50; // Button debounce delay
+const uint32_t OFFSET = 600000;
 
-// Pins
+// ================= PINS =================
 const uint8_t PTT_PIN = 5;
 const uint8_t MODE_BUTTON_PIN = 6;
 const uint8_t STEP_BUTTON_PIN = 4;
+const uint8_t RSSI_PIN = A0;
 
-// Globals
-Adafruit_SI5351 si5351;
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-Encoder encoder(3, 2);
+// ================= GLOBALS =================
 uint32_t frequency = 145440000;
 uint32_t lastFrequency = 0;
-uint8_t stepIndex = 0;
+
+uint8_t stepIndex = 1;
 uint8_t duplexMode = 0;
+
 bool lastStepButtonState = HIGH;
 bool lastModeButtonState = HIGH;
+
 unsigned long lastDebounceTime = 0;
 
-void setup() {
-  // Initialize SI5351
-  if (si5351.begin() != ERROR_NONE) {
-    lcd.print(F("SI5351 error"));
-    while (1);
-  }
-  si5351.setupPLLInt(SI5351_PLL_A, 36);
-  si5351.setupMultisynthInt(0, SI5351_PLL_A, 900);
-  si5351.enableOutputs(true);
+// ================= ICON =================
+byte sigIcon[8] = {
+  B00100,
+  B01110,
+  B11111,
+  B00100,
+  B00100,
+  B01110,
+  B00000,
+  B00000
+};
 
-  // Initialize LCD
+// ================= BAR GRAPH =================
+byte bar1[8] = {B10000,B10000,B10000,B10000,B10000,B10000,B10000,B10000};
+byte bar2[8] = {B11000,B11000,B11000,B11000,B11000,B11000,B11000,B11000};
+byte bar3[8] = {B11100,B11100,B11100,B11100,B11100,B11100,B11100,B11100};
+byte bar4[8] = {B11110,B11110,B11110,B11110,B11110,B11110,B11110,B11110};
+byte bar5[8] = {B11111,B11111,B11111,B11111,B11111,B11111,B11111,B11111};
+
+// ================= RF ENGINE =================
+void setFrequencyRF(uint32_t f) {
+
+  // CLK0 = TX / VFO utama
+  si5351.set_freq((uint64_t)f * 100ULL, SI5351_CLK0);
+
+  // CLK1 = RX / duplex offset
+  if (duplexMode == 1) {
+    si5351.set_freq((uint64_t)(f - OFFSET) * 100ULL, SI5351_CLK1);
+  } 
+  else if (duplexMode == 2) {
+    si5351.set_freq((uint64_t)(f + OFFSET) * 100ULL, SI5351_CLK1);
+  } 
+  else {
+    si5351.set_freq((uint64_t)f * 100ULL, SI5351_CLK1);
+  }
+}
+
+void setup() {
+
   lcd.init();
   lcd.backlight();
-  lcd.print(F("Selamat Datang !!"));
+
+  lcd.setCursor(0, 0);
+  lcd.print(F("### WELCOME! ###"));
   lcd.setCursor(0, 1);
-  lcd.print(F("YD1FFB-Ardiansah"));
-  delay(1000);
+  lcd.print(F(" SI5351 VFO RF "));
+  delay(1200);
   lcd.clear();
 
-  // Initialize pins
+  lcd.createChar(0, sigIcon);
+  lcd.createChar(1, bar1);
+  lcd.createChar(2, bar2);
+  lcd.createChar(3, bar3);
+  lcd.createChar(4, bar4);
+  lcd.createChar(5, bar5);
+
   encoder.write(0);
+
   pinMode(STEP_BUTTON_PIN, INPUT_PULLUP);
   pinMode(PTT_PIN, INPUT_PULLUP);
   pinMode(MODE_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(RSSI_PIN, INPUT);
+
+  // ================= SI5351 INIT =================
+  if (!si5351.begin()) {
+    lcd.setCursor(0, 0);
+    lcd.print("SI5351 ERROR");
+    while (1);
+  }
+
+  si5351.init(SI5351_CRYSTAL_LOAD_8PF);
+  si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
+  si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
+
+  setFrequencyRF(frequency);
 }
 
 void loop() {
-  // Read encoder position
+
+  // ================= ENCODER =================
   int32_t encoderPos = encoder.read() / 4;
+
   if (encoderPos != 0) {
-    frequency = constrain(frequency + encoderPos * STEP_SIZES[stepIndex], MIN_FREQUENCY, MAX_FREQUENCY);
+    frequency = constrain(
+      frequency + encoderPos * STEP_SIZES[stepIndex],
+      MIN_FREQUENCY,
+      MAX_FREQUENCY
+    );
+
     encoder.write(0);
+
+    setFrequencyRF(frequency);
   }
 
-  // Read button states
+  // ================= STEP BUTTON =================
   bool stepButtonState = digitalRead(STEP_BUTTON_PIN);
-  bool modeButtonState = digitalRead(MODE_BUTTON_PIN);
 
-  // Handle step size button
   if (stepButtonState != lastStepButtonState) {
     lastDebounceTime = millis();
   }
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
+
+  if ((millis() - lastDebounceTime) > 50) {
     if (stepButtonState == LOW) {
       stepIndex = (stepIndex + 1) % 3;
-      delay(200);
+      delay(150);
     }
   }
   lastStepButtonState = stepButtonState;
 
-  // Handle duplex mode button
+  // ================= MODE BUTTON =================
+  bool modeButtonState = digitalRead(MODE_BUTTON_PIN);
+
   if (modeButtonState != lastModeButtonState) {
     lastDebounceTime = millis();
   }
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
+
+  if ((millis() - lastDebounceTime) > 50) {
     if (modeButtonState == LOW) {
       duplexMode = (duplexMode + 1) % 3;
-      delay(200);
+      setFrequencyRF(frequency);
+      delay(150);
     }
   }
   lastModeButtonState = modeButtonState;
 
-  // Update frequency based on PTT and duplex mode
-  uint32_t displayFrequency = frequency;
-  if (digitalRead(PTT_PIN) == LOW) {
-    if (duplexMode == 1) {
-      displayFrequency = max(MIN_FREQUENCY, frequency - OFFSET);
-    } else if (duplexMode == 2) {
-      displayFrequency = min(MAX_FREQUENCY, frequency + OFFSET);
-    }
+  // ================= RSSI =================
+  static int filtered = 0;
+  int raw = analogRead(RSSI_PIN);
+  filtered = (filtered * 3 + raw) / 4;
+
+  int level = map(filtered, 0, 1023, 0, 5);
+
+  // ================= PTT =================
+  bool tx = (digitalRead(PTT_PIN) == LOW);
+
+  if (tx) {
+    setFrequencyRF(frequency);
   }
 
-  // Update SI5351 and LCD if frequency changed or time to update
+  uint32_t displayFrequency = frequency;
+
+  if (tx) {
+    if (duplexMode == 1) displayFrequency = frequency - OFFSET;
+    else if (duplexMode == 2) displayFrequency = frequency + OFFSET;
+  }
+
+  // ================= LCD UPDATE =================
   if (displayFrequency != lastFrequency || millis() - lastDebounceTime >= 100) {
-    lastDebounceTime = millis();
+
     lastFrequency = displayFrequency;
 
-    si5351.setupPLLInt(SI5351_PLL_A, 36);
-    si5351.setupMultisynthInt(0, SI5351_PLL_A, 90000000000UL / displayFrequency);
-
+    // LINE 1
     lcd.setCursor(0, 0);
-    lcd.print("Controller IC2N");
+    lcd.print(tx ? "TX:" : "RX:");
+
+    float mhz = displayFrequency / 1000000.0;
+    lcd.setCursor(3, 0);
+    lcd.print(mhz, 3);
+    lcd.print(" MHz ");
+
+    lcd.setCursor(14, 0);
+    lcd.print(duplexMode == 1 ? "-" :
+              duplexMode == 2 ? "+" : " ");
+
+    // LINE 2
     lcd.setCursor(0, 1);
-    lcd.print(digitalRead(PTT_PIN) == LOW ? F("TX:") : F("RX:"));
+    lcd.write((uint8_t)0);
 
-    // Display frequency
-    float frequencyMHz = displayFrequency / 1000000.0;
-    lcd.setCursor(3, 1);
-    lcd.printf("%.2f MHz", frequencyMHz);
-
-    // Display duplex mode
-    lcd.setCursor(14, 1);
-    lcd.print(duplexMode == 1 ? F("-") : duplexMode == 2 ? F("+") : F(" "));
+    for (int i = 0; i < 5; i++) {
+      if (i < level) lcd.write((uint8_t)5);
+      else lcd.print(" ");
+    }
   }
 }

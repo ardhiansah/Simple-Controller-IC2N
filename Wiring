@@ -1,29 +1,81 @@
-Wiring / Pengkabelan
-1.	Adafruit SI5351 (Clock Generator)
-VCC: Sambungkan ke 5V pada Arduino.
-GND: Sambungkan ke GND pada Arduino.
-SDA: Sambungkan ke pin SDA pada Arduino (biasanya pin A4 pada Arduino Uno).
-SCL: Sambungkan ke pin SCL pada Arduino (biasanya pin A5 pada Arduino Uno).
+📌 1. TABEL WIRING LENGKAP
+🔌 A. Power & I2C Bus (Shared)
+Modul	Pin Modul	Arduino Nano	Catatan
+LCD I2C	VCC	5V	Supply utama
+LCD I2C	GND	GND	Ground common
+LCD I2C	SDA	A4	I2C bus
+LCD I2C	SCL	A5	I2C bus
+SI5351	VCC	3.3V / 5V*	tergantung module
+SI5351	GND	GND	harus common
+SI5351	SDA	A4	sharing I2C
+SI5351	SCL	A5	sharing I2C
+🎛️ B. Rotary Encoder
+Encoder Pin	Arduino	Fungsi
+CLK (A)	D3	Pulse A
+DT (B)	D2	Pulse B
+VCC	5V	Supply
+GND	GND	Ground
+🔘 C. Control Buttons
+Tombol	Arduino Pin	Mode
+STEP	D4	Ganti step tuning
+PTT	D5	TX/RX switch
+MODE	D6	Duplex mode
 
-2.	LCD (LiquidCrystal_I2C)
-VCC: Sambungkan ke 5V pada Arduino.
-GND: Sambungkan ke GND pada Arduino.
-SDA: Sambungkan ke pin SDA pada Arduino (biasanya pin A4 pada Arduino Uno).
-SCL: Sambungkan ke pin SCL pada Arduino (biasanya pin A5 pada Arduino Uno).
+📌 Semua tombol:
 
-3.	Rotary Encoder
-VCC: Sambungkan ke 5V pada Arduino.
-GND: Sambungkan ke GND pada Arduino.
-DT (Data): Sambungkan ke pin 3 pada Arduino.
-CLK (Clock): Sambungkan ke pin 2 pada Arduino.
+1 kaki → pin
+1 kaki → GND
+gunakan INPUT_PULLUP
+📶 D. RSSI Input (Analog S-Meter)
+RSSI Module	Arduino
+OUT	A0
+VCC	5V
+GND	GND
+📡 E. RF OUTPUT (SI5351)
 
-4.	Tombol-Tombol (Button)
-	PTT Button:
-Satu pin: Sambungkan ke pin 5 pada Arduino.
-Pin lainnya: Sambungkan ke GND pada Arduino.
-	Mode Button:
-Satu pin: Sambungkan ke pin 6 pada Arduino.
-Pin lainnya: Sambungkan ke GND pada Arduino.
-	Step Button:
-Satu pin: Sambungkan ke pin 4 pada Arduino.
-Pin lainnya: Sambungkan ke GND pada Arduino.
+SI5351 Clock Generator Module
+
+Output	Fungsi	Keterangan
+CLK0	TX / VFO utama	output RF utama
+CLK1	RX / Duplex offset	receive offset
+CLK2	optional	tidak dipakai
+⚡ 2. SKEMA LOGIC SYSTEM (BLOCK DIAGRAM)
+🔷 A. CORE SYSTEM FLOW
+          +----------------------+
+          |    ROTARY ENCODER    |
+          |   (Tuning FREQ)      |
+          +----------+-----------+
+                     |
+                     v
+          +----------------------+
+          |   ARDUINO NANO      |
+          |  CONTROL ENGINE     |
+          +----+----+----+------+
+               |    |    |
+               |    |    |
+               |    |    +------------------+
+               |    |                       |
+               v    v                       v
+        +-----------+--------+     +----------------+
+        |   LCD 16x2 I2C     |     |  PTT / MODE    |
+        |  DISPLAY STATUS    |     |  CONTROL LOGIC |
+        +--------------------+     +----------------+
+
+                     |
+                     v
+          +----------------------+
+          |     SI5351 DDS      |
+          |  RF FREQUENCY GEN   |
+          +----+------------+---+
+               |            |
+             CLK0         CLK1
+               |            |
+         TX RF OUT     RX OFFSET RF
+               |
+               v
+        +----------------------+
+        |   RF FILTER (LPF)   |
+        +----------------------+
+               |
+               v
+          ANTENNA SYSTEM

@@ -1,81 +1,47 @@
-📌 1. TABEL WIRING LENGKAP
-🔌 A. Power & I2C Bus (Shared)
-Modul	Pin Modul	Arduino Nano	Catatan
-LCD I2C	VCC	5V	Supply utama
-LCD I2C	GND	GND	Ground common
-LCD I2C	SDA	A4	I2C bus
-LCD I2C	SCL	A5	I2C bus
-SI5351	VCC	3.3V / 5V*	tergantung module
-SI5351	GND	GND	harus common
-SI5351	SDA	A4	sharing I2C
-SI5351	SCL	A5	sharing I2C
-🎛️ B. Rotary Encoder
-Encoder Pin	Arduino	Fungsi
-CLK (A)	D3	Pulse A
-DT (B)	D2	Pulse B
-VCC	5V	Supply
-GND	GND	Ground
-🔘 C. Control Buttons
-Tombol	Arduino Pin	Mode
-STEP	D4	Ganti step tuning
-PTT	D5	TX/RX switch
-MODE	D6	Duplex mode
+Berikut adalah daftar wiring lengkap yang sudah disusun rapi agar mudah dibaca saat proses perakitan hardware:
 
-📌 Semua tombol:
+📋 Daftar Koneksi Pin Arduino Nano/Uno
+1. Komunikasi I2C (Bus Sistem)
+Kedua modul ini dihubungkan secara paralel ke jalur yang sama.
 
-1 kaki → pin
-1 kaki → GND
-gunakan INPUT_PULLUP
-📶 D. RSSI Input (Analog S-Meter)
-RSSI Module	Arduino
-OUT	A0
-VCC	5V
-GND	GND
-📡 E. RF OUTPUT (SI5351)
+LCD 16x2 I2C & Si5351 Module:
 
-SI5351 Clock Generator Module
+SDA ➔ Pin A4 Arduino
 
-Output	Fungsi	Keterangan
-CLK0	TX / VFO utama	output RF utama
-CLK1	RX / Duplex offset	receive offset
-CLK2	optional	tidak dipakai
-⚡ 2. SKEMA LOGIC SYSTEM (BLOCK DIAGRAM)
-🔷 A. CORE SYSTEM FLOW
-          +----------------------+
-          |    ROTARY ENCODER    |
-          |   (Tuning FREQ)      |
-          +----------+-----------+
-                     |
-                     v
-          +----------------------+
-          |   ARDUINO NANO      |
-          |  CONTROL ENGINE     |
-          +----+----+----+------+
-               |    |    |
-               |    |    |
-               |    |    +------------------+
-               |    |                       |
-               v    v                       v
-        +-----------+--------+     +----------------+
-        |   LCD 16x2 I2C     |     |  PTT / MODE    |
-        |  DISPLAY STATUS    |     |  CONTROL LOGIC |
-        +--------------------+     +----------------+
+SCL ➔ Pin A5 Arduino
 
-                     |
-                     v
-          +----------------------+
-          |     SI5351 DDS      |
-          |  RF FREQUENCY GEN   |
-          +----+------------+---+
-               |            |
-             CLK0         CLK1
-               |            |
-         TX RF OUT     RX OFFSET RF
-               |
-               v
-        +----------------------+
-        |   RF FILTER (LPF)   |
-        +----------------------+
-               |
-               v
-          ANTENNA SYSTEM
+VCC ➔ Pin 5V Arduino
+
+GND ➔ Pin GND Arduino
+
+2. Input Navigasi (Rotary Encoder)
+Menggunakan pin interupsi (D2 & D3) untuk respon putaran yang cepat.
+
+CLK (Phase A) ➔ Pin D3 Arduino
+
+DT (Phase B) ➔ Pin D2 Arduino
+
+SW (Push Button) ➔ Pin D4 Arduino (Untuk ganti Step Size)
+
+GND ➔ Pin GND Arduino
+
+3. Kontrol Transmisi & Mode
+Semua tombol menggunakan sistem Active Low (koneksi ke Ground).
+
+PTT Switch ➔ Pin D5 Arduino (Tekan untuk bicara)
+
+Mode Button ➔ Pin D6 Arduino (Ganti Simplex/Duplex)
+
+Common Ground ➔ Pin GND Arduino (Kaki lain dari setiap tombol)
+
+4. Input & Output Sinyal
+RSSI Input ➔ Pin A0 Arduino (Input tegangan analog 0-5V)
+
+Si5351 CLK0 ➔ RF Output (Jalur sinyal frekuensi utama)
+
+5. Power Supply (Saran)
+Arduino Vin ➔ Input 7V - 12V DC (Jika menggunakan adaptor luar)
+
+Arduino 5V ➔ Distribusi ke LCD dan modul Si5351
+
+Tips: Karena Anda menggunakan INPUT_PULLUP di dalam kode, Anda tidak perlu memasang resistor eksternal pada tombol PTT, Mode, dan Encoder SW. Cukup hubungkan pin tersebut langsung ke tombol, dan sisi tombol lainnya langsung ke Ground.
